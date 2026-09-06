@@ -1,0 +1,61 @@
+name: Feature request / enhancement
+description: Propose new functionality or a meaningful improvement
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What can't you do today, or what's painful? Link related issues.
+      placeholder: As an employer, I can't ... because ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should change? Be as concrete as you can (files, UI, API).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How do we know it's done?
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Proof generation (lib/proof.ts, circuits)
+        - Stellar / wallet integration (lib/stellar.ts)
+        - Employer dashboard
+        - Verify / payroll execution
+        - Employee portal / claims
+        - Auditor disclosure
+        - UI / design system
+        - Tooling / CI / docs
+        - Other
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this isn't a duplicate
+          required: true
+        - label: I'm willing to help implement this (optional but appreciated)
+          required: false

@@ -1,0 +1,23 @@
+# Code owners are automatically requested for review on matching PRs.
+# https://docs.github.com/articles/about-code-owners
+#
+# Replace the placeholder handles below with real GitHub usernames or a team
+# (e.g. @MeritPay/frontend), then uncomment the lines.
+
+# Default owner for everything in the repo
+# *                     @MeritPay-maintainer
+
+# Cryptography-sensitive code — proof serialization, unit conversions
+# /lib/proof.ts          @MeritPay-maintainer
+# /lib/claim.ts          @MeritPay-maintainer
+
+# On-chain integration
+# /lib/stellar.ts        @MeritPay-maintainer
+
+# Compiled circuit artifacts (kept in sync with the companion circuits repo)
+# /public/circuits/      @MeritPay-maintainer
+
+# Community health files
+# /.github/              @MeritPay-maintainer
+# /CONTRIBUTING.md       @MeritPay-maintainer
+# /SECURITY.md           @MeritPay-maintainer

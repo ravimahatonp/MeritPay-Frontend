@@ -154,6 +154,19 @@ public/
 
 ---
 
+## Contributing
+
+Contributions are welcome. Start with:
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — setup, workflow, branch/commit conventions, coding standards
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community expectations
+- [SECURITY.md](SECURITY.md) — how to report a vulnerability privately
+- [CHANGELOG.md](CHANGELOG.md) — notable changes
+
+Copy [.env.local.example](.env.local.example) to `.env.local` before running any on-chain flow.
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

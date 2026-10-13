@@ -4,71 +4,13 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { fundPool, getPoolBalance, getEpoch, explorerTxUrl } from '@/lib/stellar';
 import WalletConnect from '@/components/WalletConnect';
-
-interface EmployeeRow {
-  id: number;
-  name: string;
-  baseSalary: number;
-  hoursThreshold: number;
-  hoursBonus: number;
-  salesBonus: number;
-}
+import { parseCSV, MAX_EMPLOYEES } from '@/lib/csv';
+import type { EmployeeRow, RowError } from '@/lib/csv';
 
 const INITIALS_COLORS = ['#C8A55A', '#5A9B78', '#7A6B44', '#A87A3A', '#3B6B52'];
-const MAX_EMPLOYEES = 5;
 
-let _nextId = 1;
-function makeRow(): EmployeeRow {
-  return { id: _nextId++, name: '', baseSalary: 0, hoursThreshold: 160, hoursBonus: 0, salesBonus: 0 };
-}
-
-function parseCSV(text: string): EmployeeRow[] | string {
-  const lines = text.trim().split(/\r?\n/).filter(Boolean);
-  if (lines.length < 2) return 'CSV must have a header row and at least one data row.';
-
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
-  const required = ['name', 'base_salary', 'hours_threshold', 'hours_bonus', 'sales_bonus'];
-  const missing = required.filter(r => !headers.includes(r));
-  if (missing.length) return `Missing columns: ${missing.join(', ')}`;
-
-  const rows: EmployeeRow[] = [];
-  for (let i = 1; i < lines.length && rows.length < MAX_EMPLOYEES; i++) {
-    const values = lines[i].split(',').map(v => v.trim());
-    const col = (key: string) => values[headers.indexOf(key)] ?? '';
-    
-    const name = col('name').slice(0, 100); // Limit string length
-    const baseSalary = parseFloat(col('base_salary')) || 0;
-    const hoursThreshold = parseInt(col('hours_threshold')) || 160;
-    const hoursBonus = parseFloat(col('hours_bonus')) || 0;
-    const salesBonus = parseFloat(col('sales_bonus')) || 0;
-    
-    // Validate numeric ranges to prevent injection and overflow
-    if (!Number.isFinite(baseSalary) || baseSalary < 0 || baseSalary > 1000000) {
-      return `Row ${i + 1}: Invalid base salary. Must be between 0 and 1,000,000.`;
-    }
-    if (!Number.isFinite(hoursThreshold) || hoursThreshold < 1 || hoursThreshold > 10000) {
-      return `Row ${i + 1}: Invalid hours threshold. Must be between 1 and 10,000.`;
-    }
-    if (!Number.isFinite(hoursBonus) || hoursBonus < 0 || hoursBonus > 100000) {
-      return `Row ${i + 1}: Invalid hours bonus. Must be between 0 and 100,000.`;
-    }
-    if (!Number.isFinite(salesBonus) || salesBonus < 0 || salesBonus > 100000) {
-      return `Row ${i + 1}: Invalid sales bonus. Must be between 0 and 100,000.`;
-    }
-    if (!name || name.length === 0) {
-      return `Row ${i + 1}: Employee name cannot be empty.`;
-    }
-    
-    rows.push({
-      id: _nextId++,
-      name,
-      baseSalary,
-      hoursThreshold,
-      hoursBonus,
-      salesBonus,
-    });
-  }
-  return rows;
+function makeRow(id: number): EmployeeRow {
+  return { id, name: '', baseSalary: 0, hoursThreshold: 160, hoursBonus: 0, salesBonus: 0 };
 }
 
 function downloadTemplate() {
@@ -90,7 +32,8 @@ function downloadTemplate() {
 export default function EmployerPage() {
   const [rows, setRows] = useState<EmployeeRow[]>([]);
   const [saved, setSaved] = useState(false);
-  const [csvError, setCsvError] = useState('');
+  const [csvErrors, setCsvErrors] = useState<RowError[]>([]);
+  const [csvSummary, setCsvSummary] = useState('');
   const [poolBalance, setPoolBalance] = useState<number | null>(null);
   const [epoch, setEpoch] = useState<number>(1);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -121,7 +64,6 @@ export default function EmployerPage() {
           return;
         }
         if (parsed.length) {
-          _nextId = Math.max(...parsed.map(r => r.id)) + 1;
           // Deferred to the client: reading localStorage during the initial render
           // would desync from the server-rendered (empty) markup and break hydration.
           // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -159,7 +101,8 @@ export default function EmployerPage() {
 
   const addRow = () => {
     if (rows.length >= MAX_EMPLOYEES) return;
-    setRows(prev => [...prev, makeRow()]);
+    const nextId = rows.length > 0 ? Math.max(...rows.map(r => r.id)) + 1 : 1;
+    setRows(prev => [...prev, makeRow(nextId)]);
     setSaved(false);
   };
 
@@ -180,15 +123,17 @@ export default function EmployerPage() {
   };
 
   const handleCSV = (file: File) => {
-    setCsvError('');
+    setCsvErrors([]);
+    setCsvSummary('');
     const reader = new FileReader();
     reader.onload = e => {
       const text = (e.target?.result as string) ?? '';
       const result = parseCSV(text);
-      if (typeof result === 'string') {
-        setCsvError(result);
+      if (!result.ok) {
+        setCsvErrors(result.errors);
+        setCsvSummary(result.summary ?? '');
       } else {
-        setRows(result);
+        setRows(result.rows);
         setSaved(false);
       }
     };
@@ -308,9 +253,33 @@ export default function EmployerPage() {
             </button>
           </div>
 
-          {csvError && (
-            <div className="rounded-lg border border-[#A84A4A]/40 bg-[#A84A4A]/10 px-4 py-3 text-sm text-[#D07070]">
-              {csvError}
+          {(csvSummary || csvErrors.length > 0) && (
+            <div className="rounded-lg border border-[#A84A4A]/40 bg-[#A84A4A]/10 px-4 py-3 text-sm text-[#D07070] space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-[#E8A0A0]">
+                  {csvSummary ? 'CSV Import Error' : `CSV Import Errors (${csvErrors.length})`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCsvSummary('');
+                    setCsvErrors([]);
+                  }}
+                  className="text-xs text-[#A84A4A] hover:text-[#D07070] transition-colors cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+              {csvSummary && <p>{csvSummary}</p>}
+              {csvErrors.length > 0 && (
+                <ul className="list-disc list-inside space-y-1 text-xs text-[#E08A8A] max-h-48 overflow-y-auto pt-1 font-mono">
+                  {csvErrors.map((err, i) => (
+                    <li key={i}>
+                      Row {err.row}: {err.message}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
